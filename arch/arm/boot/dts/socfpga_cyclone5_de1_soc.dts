@@ -1,0 +1,193 @@
+/dts-v1/;
+
+#include "socfpga_cyclone5.dtsi"
+#include <dt-bindings/reset/altr,rst-mgr.h>
+
+/ {
+
+    model = "DE1-SoC Cyclone V Development Kit";
+	compatible = "altr,socfpga-cyclone5", "altr,socfpga";
+
+
+    chosen {
+		bootargs = "earlyprintk debug console=ttyS0,115200 root=/dev/mmcblk0p2 rw rootwait mem=768M";
+	};
+
+	memory@0 {
+		name = "memory";
+		device_type = "memory";
+		reg = <0x0 0x40000000>; /* 1GB */
+	};
+
+    cpus {
+		cpu@0 {
+			compatible = "arm,cortex-a9-1.0", "arm,cortex-a9";
+		};
+		cpu@1 {
+			compatible = "arm,cortex-a9-1.0", "arm,cortex-a9";
+		};
+	};
+
+	regulator_3_3v: vcc3p3-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "VCC3P3";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+	};
+
+	soc {		
+        device_type = "soc";
+		ranges;
+		#address-cells = < 1 >;
+		#size-cells = < 1 >;
+		compatible = "ALTR,avalon", "simple-bus";
+		interrupt-parent = < &intc >;
+
+		hps_0_bridges: bridge@c0000000 {
+			compatible = "altr,bridge-1.0", "simple-bus";
+			reg = < 0xC0000000 0x20000000 0xFF200000 0x00200000 >;
+			reg-names = "axi_h2f", "axi_h2f_lw";
+			#address-cells = < 2 >;
+			#size-cells = < 1 >;
+			ranges = < 0x00000000 0x00000000 0xC0000000 0x20000000 
+				0x00000001 0x00000000 0xFF200000 0x00000008 >;
+
+			plasma_soc_0: plasma_soc@0 {
+				compatible = "simple-bus";
+				reg = < 0x00000000 0x00000000 0x20000000 >;
+			}; 
+
+			sysid_qsys_0: sysid@100000000 {
+				compatible = "ALTR,sysid-13.1", "ALTR,sysid-1.0", "altr,sysid-1.0";
+				reg = < 0x00000001 0x00000000 0x00000008 >;
+				id = < 3735928559 >;
+				timestamp = < 1536342590 >;
+			}; 
+		}; 
+
+        qspi0: spi@ff705000 {
+			compatible = "cadence,qspi-1.0", "cadence,qspi";
+			reg = < 0xFF705000 0x00001000 
+				0xFFA00000 0x00001000 >;
+			reg-names = "axi_slave0", "axi_slave1";
+			interrupts = < 0 151 4 >;
+			bus-num = < 2 >;
+			fifo-depth = < 128 >;
+			num-chipselect = < 4 >;
+			bank-width = < 2 >;
+			device-width = < 1 >;
+			master-ref-clk = < 400000000 >;
+			ext-decoder = < 0 >;
+			#address-cells = < 1 >;
+			#size-cells = < 0 >;
+
+            status = "disabled";
+
+			spi: n25q00@0 {
+				#address-cells = < 1 >;
+				#size-cells = < 1 >;
+				compatible = "n25q00";
+				reg = < 0 >;
+				spi-max-frequency = < 100000000 >;
+				page-size = < 256 >;
+				block-size = < 16 >;
+				m25p,fast-read;
+				read-delay = < 4 >;
+				tshsl-ns = < 50 >;
+				tsd2d-ns = < 50 >;
+				tchsh-ns = < 4 >;
+				tslch-ns = < 4 >;
+
+				part0: partition@0 {
+					label = "Flash 0 Raw Data";
+					reg = < 0x00000000 0x00800000 >;
+				};
+
+				part1: partition@800000 {
+					label = "Flash 1 jffs2 Filesystem";
+					reg = < 0x00800000 0x00800000 >;
+				};
+			};
+		};
+
+        pmu: pmu0 {
+			#address-cells = < 1 >;
+			#size-cells = < 1 >;
+			compatible = "arm,cortex-a9-pmu";
+			interrupts = < 0 176 4 0 177 4 >;
+			ranges;
+
+			cti0: cti0@ff118000 {
+				compatible = "arm,coresight-cti";
+				reg = < 0xFF118000 0x00000100 >;
+			}; 
+
+			cti1: cti0@ff119000 {
+				compatible = "arm,coresight-cti";
+				reg = < 0xFF119000 0x00000100 >;
+			};
+		};
+
+		fpgabridge0: fpgabridge@FF400000 {
+			compatible = "altr,socfpga-lwhps2fpga-bridge";
+			reg = <0xFF400000 0x100000>;	
+			label = "lwhps2fpga";	
+			clocks = < &l4_main_clk >;	
+			reset-names = "lwhps2fpga";
+			resets = <&rst LWHPS2FPGA_RESET>;
+		};
+
+        fpgabridge1: fpgabridge@FF500000 {
+			compatible = "altr,socfpga-hps2fpga-bridge";
+			reg = <0x0FF500000 0x100000>;
+			label = "hps2fpga";	
+			clocks = < &l4_main_clk >;	
+			reset-names = "hps2fpga";
+			resets = <&rst HPS2FPGA_RESET>;
+		};
+
+		fpgabridge2: fpgabridge@FF600000 {
+			compatible = "altr,socfpga-fpga2hps-bridge";	
+			reg = <0xff600000 0x100000>;
+			label = "fpga2hps";	
+			clocks = < &l4_main_clk >;	
+			reset-names = "fpga2hps";
+			resets = <&rst FPGA2HPS_RESET>;
+		};
+	};
+};
+
+&mmc0 {
+    vmmc-supply = <&regulator_3_3v>;
+    vqmmc-supply = <&regulator_3_3v>;
+	status = "okay";
+};
+
+&pdma {
+    compatible = "arm,pl330-1.0", "arm,pl330", "arm,primecell";
+    interrupts = < 0 104 4 >;
+	status = "okay";
+};
+
+&usb1 {	
+//    enable-dynamic-fifo = <1>; 
+//    host-rx-fifo-size = <0xa00>; 
+//    host-perio-tx-fifo-size = <0xa00>; 
+//    host-nperio-tx-fifo-size = <0xa00>; 
+//    dma-desc-enable = <0>; 
+   status = "okay";
+};
+
+&gmac1 {
+	phy-mode = "rgmii";
+	rxd0-skew-ps = <420>;
+	rxd1-skew-ps = <420>;
+	rxd2-skew-ps = <420>;
+	rxd3-skew-ps = <420>;
+	txen-skew-ps = <0>;
+	txc-skew-ps = <1860>;
+	rxdv-skew-ps = <420>;
+	rxc-skew-ps = <1680>;
+
+    status = "okay";
+};
